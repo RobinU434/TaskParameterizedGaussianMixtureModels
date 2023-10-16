@@ -1,0 +1,1 @@
+from gmr.gmr import GaussianMixtureRegression
