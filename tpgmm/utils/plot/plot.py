@@ -1,13 +1,9 @@
-from typing import Callable, List, Union
+from typing import List, Union
 
-import matplotlib as mpl
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
 import numpy as np
 
 from tpgmm.utils.plot.decorator import plot3D
-
 
 
 @plot3D

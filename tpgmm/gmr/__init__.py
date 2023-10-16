@@ -1,1 +1,1 @@
-from gmr.gmr import GaussianMixtureRegression
+from tpgmm.gmr.gmr import GaussianMixtureRegression
