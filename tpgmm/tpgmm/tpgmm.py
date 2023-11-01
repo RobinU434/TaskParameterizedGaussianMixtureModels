@@ -99,7 +99,9 @@ class TPGMM(ClassificationModule):
 
         self._verbose = verbose
 
-        self._k_means_algo = KMeans(n_clusters=self._n_components, init="k-means++", n_init="auto")
+        self._k_means_algo = KMeans(
+            n_clusters=self._n_components, init="k-means++", n_init="auto"
+        )
         """KMeans: algorithm to initialize unsupervised clustering"""
         self._cov_reg_matrix = None
         """ndarray: to avoid singularities. shape: (num_frames, n_components, num_features, num_features)"""
@@ -112,141 +114,6 @@ class TPGMM(ClassificationModule):
 
         self.covariances_ = None
         """ndarray: covariance matrix for each frame and component. Shape: (num_frames, n_components, num_features, num_features)"""
-
-    def fit(self, X: ndarray) -> None:
-        """fits X on the task parameterized gaussian mixture model using K-Means clustering as default initialization method and executes the expectation maximization algorithm: \n
-        E-Step:
-        self._update_h()
-
-        M-Step:
-        self._update_weights_()
-        self._update_means_()
-        self._update_covariances()
-
-        The optimization criterion is the log-likelihood implemented in:
-        self._log_likelihood()
-
-        The algorithm stops if \f$LL_{t-1} - LL_t < \textit{self.tol}\f$ with \f$LL_{t}\f$ as the log-likelihood at time t.
-
-        Args:
-            X (ndarray): data tensor to fit the the task parameterized gaussian mixture model on. Expected shape: (num_frames, num_points, num_features)
-        """
-        # perform k-means clustering
-        if self._verbose:
-            print("Started KMeans clustering")
-        self.means_, self.covariances_ = self._k_means(X)
-        self._cov_reg_matrix = identity_like(self.covariances_) * 1e-15
-
-        if self._verbose:
-            print("finished KMeans clustering")
-
-        # init weights with uniform probability
-        if self.weights_ is None:
-            self.weights_ = np.ones(self._n_components) / self._n_components
-
-        if self._verbose:
-            print("Started expectation maximization")
-        probabilities = self.gauss_cdf(X)
-        log_likelihood = self._log_likelihood(probabilities)
-        for epoch_idx in range(self._max_iter):
-            # Expectation
-            h = self._update_h(probabilities)
-
-            # Maximization
-            self._update_weights(h)
-            self._update_mean(X, h)
-            self._update_covariances_(X, h)
-
-            # update probabilities and log likelihood
-            probabilities = self.gauss_cdf(X)
-            updated_log_likelihood = self._log_likelihood(probabilities)
-
-            # Logging
-            difference = updated_log_likelihood - log_likelihood
-            if np.isnan(difference):
-                raise ValueError("improvement is nan")
-            if self._verbose:
-                print(f"Log likelihood: {updated_log_likelihood} improvement {difference}")
-
-            # break if threshold is reached
-            if (
-                difference < self._threshold and epoch_idx >= self._min_iter
-            ) or epoch_idx > self._max_iter:
-                break
-
-            log_likelihood = updated_log_likelihood
-
-    def predict(self, X: ndarray) -> ndarray:
-        """predict cluster labels for each data point in X
-
-        Args:
-            X (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
-
-        Returns:
-            ndarray: the label for each data-point. Shape (num_points)
-        """
-        probabilities = self.predict_proba(X)
-        labels = np.argmax(probabilities, axis=1)
-        return labels
-
-    def predict_proba(self, X: ndarray) -> ndarray:
-        """predict cluster labels for each data point
-
-        Args:
-            X (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
-
-        Returns:
-            ndarray: cluster probabilities for each data_point. Shape: (num_points, num_components)
-        """
-        frame_probs = self.gauss_cdf(X)
-        probabilities = np.prod(frame_probs, axis=0).T
-        return probabilities
-
-    def silhouette_score(self, X: ndarray) -> float:
-        """calculated the silhouette score of the model over the given metric and given data x
-        TODO(Marco Todescato): please review this function if the merge for the silhouette score is correct
-        Args:
-            X (ndarray): data in expected shape: (num_frames, num_points, num_features)
-            metric (str): _description_. Defaults to "euclidean".
-        """
-        labels = self.predict(X)
-        scores = np.empty(X.shape[0])
-        for frame_idx in range(X.shape[0]):
-            scores[frame_idx] = metrics.silhouette_score(X[frame_idx], labels)
-        weights = np.tile(self.weights_[:, None], (1, X.shape[0]))
-        weighted_sum = (weights @ scores) / (self.weights_ * X.shape[0])
-        return weighted_sum.mean()
-
-
-    def score(self, X: ndarray) -> float:
-        """calculate log likelihood score given data
-
-        Args:
-            X (ndarray): data tensor with expected shape (num_frames, num_points, num_features)
-
-        Returns:
-            float: log likelihood of given data
-        """
-        probabilities = self.gauss_cdf(X)
-        score = self._log_likelihood(probabilities)
-        return score
-
-    def bic(self, X: ndarray) -> float:
-        """calculates the bayesian information criterion as in
-
-        https://scikit-learn.org/stable/modules/linear_model.html#aic-bic
-
-        Args:
-            X (ndarray): data tensor with expected shape (num_frames, num_points, num_features)
-
-        Returns:
-            float: bic score
-        """
-        num_points = X.shape[1]
-        ll = self.score(X)
-        bic = -2 * ll + np.log(num_points) * self._n_components
-        return bic
-
 
     def _k_means(
         self,
@@ -275,7 +142,9 @@ class TPGMM(ClassificationModule):
             # get empirical covariance matrix
             covariance = []
             for cluster_idx in range(self._n_components):
-                data_idx = np.argwhere(self._k_means_algo.labels_ == cluster_idx).squeeze()
+                data_idx = np.argwhere(
+                    self._k_means_algo.labels_ == cluster_idx
+                ).squeeze()
                 covariance.append(np.cov(frame_data[data_idx].T))
             covariances.append(
                 np.stack(covariance)
@@ -306,10 +175,14 @@ class TPGMM(ClassificationModule):
         probs = []
         # to prevent singularity matrices
         covariances = self.covariances_ + self._cov_reg_matrix
-        for frame_data, frame_means, frame_covariances in zip(X, self.means_, covariances):
+        for frame_data, frame_means, frame_covariances in zip(
+            X, self.means_, covariances
+        ):
             cluster_probs = []
             for cluster_mean, cluster_cov in zip(frame_means, frame_covariances):
-                cluster_probs.append(multivariate_gauss_cdf(frame_data, cluster_mean, cluster_cov))
+                cluster_probs.append(
+                    multivariate_gauss_cdf(frame_data, cluster_mean, cluster_cov)
+                )
             probs.append(np.stack(cluster_probs))
         return np.stack(probs)
 
@@ -325,8 +198,12 @@ class TPGMM(ClassificationModule):
         Returns:
             ndarray: h-parameter. shape: (n_components, num_points)
         """
-        cluster_probs = np.prod(probabilities, axis=0)  # shape: (n_components, num_points)
-        numerator = (self.weights_ * cluster_probs.T).T  # shape: (n_components, num_points)
+        cluster_probs = np.prod(
+            probabilities, axis=0
+        )  # shape: (n_components, num_points)
+        numerator = (
+            self.weights_ * cluster_probs.T
+        ).T  # shape: (n_components, num_points)
         denominator = np.sum(numerator, axis=0)  # shape: (num_points)
         return numerator / denominator
 
@@ -371,47 +248,10 @@ class TPGMM(ClassificationModule):
             X (ndarray): shape: (num_frames, num_points, num_features)
             h (ndarray): shape: (n_components, num_points)
         """
-
-        # TODO: make faster without 3 nested for loops
-
-        # ========================================================================
-        # THIS BLOCKCOMMENT IS AN EXPERIMENT TO ONLY USE NP.EINSUM INSTEAD OF FOR-
-        # LOOPS IT TURNS OUT THAT THIS VERSION IS ONLY BENEFICIAL WITH A HIGH
-        # NUMBER OF FRAMES AND COMPONENTS REASON IS PROBABLY THE MATRIX EXPANSION
-        # ========================================================================
-        # >>>>>
-        # num_frames, num_points, num_features = X.shape
-        # # expand X array into: [num_frames, num_components, num_points, num_features]
-        # expand_data = np.tile(X[:, None, :, :], (1, self.n_components, 1, 1))
-        # # expand means into: [num_frames, num_components, num_points, num_features]
-        # expand_means = np.tile(self.means_[:, :, None, :], (1, 1, num_points, 1))
-        # # compute: (x- mean) @ (x-mean).T
-        # centered = expand_data - expand_means
-        # # i: num_frames, j: num_components, k: num_points, l, m: num_features
-        # squared_mat = np.einsum("ijkl,ijkm->ijklm", centered, centered)
-
-        # # weighted sum with h
-        # # i: num_frames, j: num_components, k: num_points, l, m: num_features
-        # weighted_sum = np.einsum("ijklm,jk->ijlm", squared_mat, h)
-        # normalizer = np.sum(h, axis=1)
-        # # expand dimension to [num_frames, num_components, num_points, num_features, num_features]
-        # normalizer = np.tile(
-        #     normalizer[None, :, None, None],
-        #     (num_frames, 1, num_features, num_features),
-        # )
-        # cov = weighted_sum / normalizer
-        # <<<<<
         cov = []
         for frame_data, frame_mean in zip(X, self.means_):
             frame_cov = []
             for component_mean, component_h in zip(frame_mean, h):
-                # mat_aggregation = []
-                # for point in frame_data:
-                #     centered = point - component_mean
-                #     centered = np.expand_dims(centered, axis=1)
-                #     mat = centered @ centered.T
-                #     mat_aggregation.append(mat)
-                # mat_aggregation = np.stack(mat_aggregation)
                 centered = frame_data - component_mean
                 # shape: (num_points, num_features, num_features)
                 mat_aggregation = np.einsum("ij,ik->ijk", centered, centered)
@@ -443,6 +283,143 @@ class TPGMM(ClassificationModule):
         probabilities = probabilities.T
         weighted_sum = probabilities @ self.weights_  # shape (num_points)
         return np.mean(np.log(weighted_sum)).item()
+
+    def fit(self, X: ndarray) -> None:
+        """fits X on the task parameterized gaussian mixture model using K-Means clustering as default initialization method and executes the expectation maximization algorithm: \n
+        E-Step:
+        self._update_h()
+
+        M-Step:
+        self._update_weights_()
+        self._update_means_()
+        self._update_covariances()
+
+        The optimization criterion is the log-likelihood implemented in:
+        self._log_likelihood()
+
+        The algorithm stops if \f$LL_{t-1} - LL_t < \textit{self.tol}\f$ with \f$LL_{t}\f$ as the log-likelihood at time t.
+
+        Args:
+            X (ndarray): data tensor to fit the the task parameterized gaussian mixture model on. Expected shape: (num_frames, num_points, num_features)
+        """
+        # perform k-means clustering
+        if self._verbose:
+            print("Started KMeans clustering")
+        self.means_, self.covariances_ = self._k_means(X)
+        self._cov_reg_matrix = identity_like(self.covariances_) * 1e-15
+
+        if self._verbose:
+            print("finished KMeans clustering")
+
+        # init weights with uniform probability
+        if self.weights_ is None:
+            self.weights_ = np.ones(self._n_components) / self._n_components
+
+        if self._verbose:
+            print("Start expectation maximization")
+
+        probabilities = self.gauss_cdf(X)
+        log_likelihood = self._log_likelihood(probabilities)
+        for epoch_idx in range(self._max_iter):
+            # Expectation
+            h = self._update_h(probabilities)
+
+            # Maximization
+            self._update_weights(h)
+            self._update_mean(X, h)
+            self._update_covariances_(X, h)
+
+            # update probabilities and log likelihood
+            probabilities = self.gauss_cdf(X)
+            updated_log_likelihood = self._log_likelihood(probabilities)
+
+            # Logging
+            difference = updated_log_likelihood - log_likelihood
+            if np.isnan(difference):
+                raise ValueError("improvement is nan")
+
+            if self._verbose:
+                print(
+                    f"Log likelihood: {updated_log_likelihood} improvement {difference}"
+                )
+
+            # break if threshold is reached
+            if (
+                difference < self._threshold and epoch_idx >= self._min_iter
+            ) or epoch_idx > self._max_iter:
+                break
+
+            log_likelihood = updated_log_likelihood
+
+    def predict(self, X: ndarray) -> ndarray:
+        """predict cluster labels for each data point in X
+
+        Args:
+            X (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
+
+        Returns:
+            ndarray: the label for each data-point. Shape (num_points)
+        """
+        probabilities = self.predict_proba(X)
+        labels = np.argmax(probabilities, axis=1)
+        return labels
+
+    def predict_proba(self, X: ndarray) -> ndarray:
+        """predict cluster labels for each data point
+
+        Args:
+            X (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
+
+        Returns:
+            ndarray: cluster probabilities for each data_point. Shape: (num_points, num_components)
+        """
+        frame_probs = self.gauss_cdf(X)
+        probabilities = np.prod(frame_probs, axis=0).T
+        return probabilities
+
+    def silhouette_score(self, X: ndarray) -> float:
+        """calculated the silhouette score of the model over the given metric and given data x
+
+        Args:
+            X (ndarray): data in expected shape: (num_frames, num_points, num_features)
+            metric (str): _description_. Defaults to "euclidean".
+        """
+        labels = self.predict(X)
+        scores = np.empty(X.shape[0])
+        for frame_idx in range(X.shape[0]):
+            scores[frame_idx] = metrics.silhouette_score(X[frame_idx], labels)
+        weights = np.tile(self.weights_[:, None], (1, X.shape[0]))
+        weighted_sum = (weights @ scores) / (self.weights_ * X.shape[0])
+        return weighted_sum.mean()
+
+    def score(self, X: ndarray) -> float:
+        """calculate log likelihood score given data
+
+        Args:
+            X (ndarray): data tensor with expected shape (num_frames, num_points, num_features)
+
+        Returns:
+            float: log likelihood of given data
+        """
+        probabilities = self.gauss_cdf(X)
+        score = self._log_likelihood(probabilities)
+        return score
+
+    def bic(self, X: ndarray) -> float:
+        """calculates the bayesian information criterion as in
+
+        https://scikit-learn.org/stable/modules/linear_model.html#aic-bic
+
+        Args:
+            X (ndarray): data tensor with expected shape (num_frames, num_points, num_features)
+
+        Returns:
+            float: bic score
+        """
+        num_points = X.shape[1]
+        log_likelihood = self.score(X)
+        bic = -2 * log_likelihood + np.log(num_points) * self._n_components
+        return bic
 
     @property
     def config(self) -> Dict[str, Any]:

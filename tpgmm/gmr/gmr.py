@@ -58,7 +58,7 @@ class GaussianMixtureRegression(RegressionModel):
 
         self.input_idx = input_idx
 
-        # intermediate parameters from equation 5 and 6
+        # parameters from equation 5 and 6
         self.xi_: ndarray  # shape: (num_components, num_features)
         self.sigma_: ndarray  # shape: (num_components, num_features, num_features)
 
@@ -74,19 +74,7 @@ class GaussianMixtureRegression(RegressionModel):
         )
         return result
 
-    def fit(self, translation: ndarray, rotation_matrix: ndarray) -> None:
-        """Turns the task_parameterized gaussian mixture model into a single gaussian mixture model
-
-        function is performing equation (5) and (6) from calinon paper
-        TODO: write formulas
-
-        Args:
-            translation (ndarray): translation matrix for translating into desired frames. Shape (num_frames, num_output_features)
-            rotation_matrix (ndarray): rotation matrix for rotating into desired frames. Shape (num_frames, num_output_features, num_output_features)
-        """
-        rotation_matrix, translation = self._pad(rotation_matrix, translation)
-
-        # TODO: write wrapper to do sorting
+    def _equation_5(self, translation: ndarray, rotation_matrix: ndarray):
         sorted_means = self._sort_by_input(
             self.tpgmm_means_,
             axes=[-1],
@@ -95,22 +83,20 @@ class GaussianMixtureRegression(RegressionModel):
             self.tpgmm_covariances_,
             axes=[-2, -1],
         )
-        # >>>> perform equation 5
         # i: num_frames, k, l: num_features, j: num_components
         xi_hat_ = np.einsum("ikl,ijl->ijk", rotation_matrix, sorted_means)
         # broadcast translation (num_frames, num_features) -> (num_frames, num_components, num_features)
         translation = np.tile(translation[:, None, :], (1, xi_hat_.shape[1], 1))
         xi_hat_ = xi_hat_ + translation
         # i: num_frames, k, l, h: num_features, j: num_components
-        # sigma_hat_ = np.empty((num_frames, num_components, num_features, num_features))
-        # for frame_idx, (frame_rot_mat, frame_cov) in enumerate(zip(rotation_matrix, sorted_covariances)):
-        #     sigma_hat_[frame_idx] = np.einsum("kl,jlh->jkh", frame_rot_mat, frame_cov)
         sigma_hat_ = np.einsum("ikl,ijlh->ijkh", rotation_matrix, sorted_covariances)
-        sigma_hat_ = np.einsum("ijkh,ihl->ijkl", sigma_hat_, rotation_matrix.swapaxes(-2, -1))
+        sigma_hat_ = np.einsum(
+            "ijkh,ihl->ijkl", sigma_hat_, rotation_matrix.swapaxes(-2, -1)
+        )
 
-        # <<<< perform equation 5
+        return xi_hat, sigma_hat
 
-        # >>>> perform equation 6
+    def _equation_6(self, sigma_hat: ndarray, xi_hat: ndarray):
         sigma_hat_inv = np.linalg.inv(sigma_hat_)
         # shape: (num_components, num_features, num_features)
         sigma_hat = np.linalg.inv(np.sum(sigma_hat_inv, axis=0))
@@ -122,7 +108,20 @@ class GaussianMixtureRegression(RegressionModel):
         # shape (num_components, num_features)
         xi_hat = np.einsum("jkl,jl->jk", sigma_hat, xi_hat)
 
-        # <<<< perform equation 6
+        return xi_hat, sigma_hat
+
+    def fit(self, translation: ndarray, rotation_matrix: ndarray) -> None:
+        """Turns the task_parameterized gaussian mixture model into a single gaussian mixture model
+
+        function is performing equation (5) and (6) from calinon paper
+        Args:
+            translation (ndarray): translation matrix for translating into desired frames. Shape (num_frames, num_output_features)
+            rotation_matrix (ndarray): rotation matrix for rotating into desired frames. Shape (num_frames, num_output_features, num_output_features)
+        """
+        rotation_matrix, translation = self._pad(rotation_matrix, translation)
+
+        xi_hat, sigma_hat = self._equation_5(translation, rotation_matrix)
+        xi_hat, sigma_hat = self._equation_6(xi_hat, sigma_hat)
 
         # rearange into original feature order
         xi_hat = self._revoke_sort_by_input(
@@ -228,7 +227,9 @@ class GaussianMixtureRegression(RegressionModel):
             # if multivariate_gauss_cdf is numerically unstable ... use multivariate gaussian from scipy
             # here the custom implementation is used because it is ~4 times faster
             probabilities.append(
-                multivariate_gauss_cdf(data, component_input_mean, component_input_covariance)
+                multivariate_gauss_cdf(
+                    data, component_input_mean, component_input_covariance
+                )
             )
         probabilities = np.stack(probabilities).T  # shape: (num_points, num_components)
 
@@ -263,15 +264,9 @@ class GaussianMixtureRegression(RegressionModel):
         cluster_mats = cov_oi @ np.linalg.inv(cov_i)
 
         # perform matrix multiplication
-        # TODO: make it faster
         # i: num_components, j: num_points, k:num_output_features, h: num_input_features
         # shape: (num_points, num_components, num_output_features)
         mu_hat = np.einsum("ikh,jih->jik", cluster_mats, centered_points)
-
-        # mu_hat = np.empty((len(input_data), self.num_components, self.num_output_features))
-        # for point_idx, clusters in enumerate(centered_points):
-        #     for cluster_idx, (point, mat) in enumerate(zip(clusters, cluster_mats)):
-        #         mu_hat[point_idx, cluster_idx] = mat @ point
 
         mu_hat = mu_hat + mean_output
         return mu_hat
@@ -289,11 +284,12 @@ class GaussianMixtureRegression(RegressionModel):
 
         return cov_o - cov_oi @ np.linalg.inv(cov_i) @ cov_io
 
-    def _pad(self, rotation_matrix: ndarray, translation: ndarray) -> Tuple[ndarray, ndarray]:
+    def _pad(
+        self, rotation_matrix: ndarray, translation: ndarray
+    ) -> Tuple[ndarray, ndarray]:
         """pads the given arguments into A = [[I_input, 0], [0, rotation_matrix]], b = [0_input, translation].T
         with I_input as the identity matrix with size of self.input_index and b_input as zeros with length of self.input_index
 
-        TODO: equation 20
         Args:
             rotation_matrix (ndarray): rotation matrix for rotating into desired frames. Shape (num_frames, num_output_features, num_output_features)
             translation (ndarray): translation matrix for translating into desired frames. Shape (num_frames, num_output_features)
@@ -335,7 +331,9 @@ class GaussianMixtureRegression(RegressionModel):
 
         return get_subarray(data, axes, sort_index)
 
-    def _revoke_sort_by_input(self, data: ndarray, axes: Iterable[int] = (0,)) -> ndarray:
+    def _revoke_sort_by_input(
+        self, data: ndarray, axes: Iterable[int] = (0,)
+    ) -> ndarray:
         """function to revoke the self.sort_by_input function
 
         Args:
@@ -366,7 +364,9 @@ class GaussianMixtureRegression(RegressionModel):
             mean, self.input_idx, -1
         )
 
-    def _tile_covariance(self, cov_mat: ndarray) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
+    def _tile_covariance(
+        self, cov_mat: ndarray
+    ) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
         """Tiles the covariance matrix into 4 parts.
         \f[
             \Sigma = [[\Sigma^\mathcal{I}, \Sigma^\mathcal{IO}], [\Sigma^\mathcal{OI}, \Sigma^\mathcal{O}]]
