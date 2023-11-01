@@ -106,9 +106,7 @@ class GaussianMixtureRegression(RegressionModel):
         # for frame_idx, (frame_rot_mat, frame_cov) in enumerate(zip(rotation_matrix, sorted_covariances)):
         #     sigma_hat_[frame_idx] = np.einsum("kl,jlh->jkh", frame_rot_mat, frame_cov)
         sigma_hat_ = np.einsum("ikl,ijlh->ijkh", rotation_matrix, sorted_covariances)
-        sigma_hat_ = np.einsum(
-            "ijkh,ihl->ijkl", sigma_hat_, rotation_matrix.swapaxes(-2, -1)
-        )
+        sigma_hat_ = np.einsum("ijkh,ihl->ijkl", sigma_hat_, rotation_matrix.swapaxes(-2, -1))
 
         # <<<< perform equation 5
 
@@ -230,9 +228,7 @@ class GaussianMixtureRegression(RegressionModel):
             # if multivariate_gauss_cdf is numerically unstable ... use multivariate gaussian from scipy
             # here the custom implementation is used because it is ~4 times faster
             probabilities.append(
-                multivariate_gauss_cdf(
-                    data, component_input_mean, component_input_covariance
-                )
+                multivariate_gauss_cdf(data, component_input_mean, component_input_covariance)
             )
         probabilities = np.stack(probabilities).T  # shape: (num_points, num_components)
 
@@ -293,9 +289,7 @@ class GaussianMixtureRegression(RegressionModel):
 
         return cov_o - cov_oi @ np.linalg.inv(cov_i) @ cov_io
 
-    def _pad(
-        self, rotation_matrix: ndarray, translation: ndarray
-    ) -> Tuple[ndarray, ndarray]:
+    def _pad(self, rotation_matrix: ndarray, translation: ndarray) -> Tuple[ndarray, ndarray]:
         """pads the given arguments into A = [[I_input, 0], [0, rotation_matrix]], b = [0_input, translation].T
         with I_input as the identity matrix with size of self.input_index and b_input as zeros with length of self.input_index
 
@@ -341,9 +335,7 @@ class GaussianMixtureRegression(RegressionModel):
 
         return get_subarray(data, axes, sort_index)
 
-    def _revoke_sort_by_input(
-        self, data: ndarray, axes: Iterable[int] = (0,)
-    ) -> ndarray:
+    def _revoke_sort_by_input(self, data: ndarray, axes: Iterable[int] = (0,)) -> ndarray:
         """function to revoke the self.sort_by_input function
 
         Args:
@@ -374,9 +366,7 @@ class GaussianMixtureRegression(RegressionModel):
             mean, self.input_idx, -1
         )
 
-    def _tile_covariance(
-        self, cov_mat: ndarray
-    ) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
+    def _tile_covariance(self, cov_mat: ndarray) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
         """Tiles the covariance matrix into 4 parts.
         \f[
             \Sigma = [[\Sigma^\mathcal{I}, \Sigma^\mathcal{IO}], [\Sigma^\mathcal{OI}, \Sigma^\mathcal{O}]]

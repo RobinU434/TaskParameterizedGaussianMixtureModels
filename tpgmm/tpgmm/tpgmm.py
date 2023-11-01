@@ -78,16 +78,17 @@ class TPGMM(ClassificationModule):
         reg_factor: float = 1e-5,
         verbose: bool = False,
     ) -> None:
-        """init class
+        """
+        Initialize the TPGMM class.
 
         Args:
-            n_components (int): number of gaussian multidimensional distributions to mix. 
-            threshold (float): threshold to break from EM algorithm. Defaults to 1e-3.
-            max_iter (int): maximum number of iterations to perform the expectation maximization algorithm. Defaults to 100.
-            min_iter (int): minimum number of iterations to perform the expectation maximization algorithm. Defaults to 5.
-            weights_init (ndarray): initial weights between each component. If set replaces initialization from K-Means. Defaults to None.
-            means_init (ndarray): initial means between each component. If set replaces initialization from K-Means. Defaults to None.
-            reg_factor (float): regularization factor for empirical covariance matrix. Defaults to 1e-5.
+            n_components (int): Number of Gaussian multidimensional distributions to mix.
+            threshold (float): Threshold to break from EM algorithm. Defaults to 1e-3.
+            max_iter (int): Maximum number of iterations to perform the expectation maximization algorithm. Defaults to 100.
+            min_iter (int): Minimum number of iterations to perform the expectation maximization algorithm. Defaults to 5.
+            weights_init (ndarray): Initial weights between each component. If set, it replaces initialization from K-Means. Defaults to None.
+            means_init (ndarray): Initial means between each component. If set, it replaces initialization from K-Means. Defaults to None.
+            reg_factor (float): Regularization factor for the empirical covariance matrix. Defaults to 1e-5.
             verbose (bool): Triggers print of learning stats. Defaults to False.
         """
         super().__init__(n_components)
@@ -98,9 +99,7 @@ class TPGMM(ClassificationModule):
 
         self._verbose = verbose
 
-        self._k_means_algo = KMeans(
-            n_clusters=self._n_components, init="k-means++", n_init="auto"
-        )
+        self._k_means_algo = KMeans(n_clusters=self._n_components, init="k-means++", n_init="auto")
         """KMeans: algorithm to initialize unsupervised clustering"""
         self._cov_reg_matrix = None
         """ndarray: to avoid singularities. shape: (num_frames, n_components, num_features, num_features)"""
@@ -167,9 +166,7 @@ class TPGMM(ClassificationModule):
             if np.isnan(difference):
                 raise ValueError("improvement is nan")
             if self._verbose:
-                print(
-                    f"Log likelihood: {updated_log_likelihood} improvement {difference}"
-                )
+                print(f"Log likelihood: {updated_log_likelihood} improvement {difference}")
 
             # break if threshold is reached
             if (
@@ -315,9 +312,7 @@ class TPGMM(ClassificationModule):
             # get empirical covariance matrix
             covariance = []
             for cluster_idx in range(self._n_components):
-                data_idx = np.argwhere(
-                    self._k_means_algo.labels_ == cluster_idx
-                ).squeeze()
+                data_idx = np.argwhere(self._k_means_algo.labels_ == cluster_idx).squeeze()
                 covariance.append(np.cov(frame_data[data_idx].T))
             covariances.append(
                 np.stack(covariance)
@@ -348,14 +343,10 @@ class TPGMM(ClassificationModule):
         probs = []
         # to prevent singularity matrices
         covariances = self.covariances_ + self._cov_reg_matrix
-        for frame_data, frame_means, frame_covariances in zip(
-            X, self.means_, covariances
-        ):
+        for frame_data, frame_means, frame_covariances in zip(X, self.means_, covariances):
             cluster_probs = []
             for cluster_mean, cluster_cov in zip(frame_means, frame_covariances):
-                cluster_probs.append(
-                    multivariate_gauss_cdf(frame_data, cluster_mean, cluster_cov)
-                )
+                cluster_probs.append(multivariate_gauss_cdf(frame_data, cluster_mean, cluster_cov))
             probs.append(np.stack(cluster_probs))
         return np.stack(probs)
 
@@ -371,12 +362,8 @@ class TPGMM(ClassificationModule):
         Returns:
             ndarray: h-parameter. shape: (n_components, num_points)
         """
-        cluster_probs = np.prod(
-            probabilities, axis=0
-        )  # shape: (n_components, num_points)
-        numerator = (
-            self.weights_ * cluster_probs.T
-        ).T  # shape: (n_components, num_points)
+        cluster_probs = np.prod(probabilities, axis=0)  # shape: (n_components, num_points)
+        numerator = (self.weights_ * cluster_probs.T).T  # shape: (n_components, num_points)
         denominator = np.sum(numerator, axis=0)  # shape: (num_points)
         return numerator / denominator
 
@@ -496,6 +483,12 @@ class TPGMM(ClassificationModule):
 
     @property
     def config(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary containing the configuration parameters of the TPGMM model.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing the configuration parameters.
+        """
         config = {
             "max_iter": self._max_iter,
             "min_iter": self._min_iter,

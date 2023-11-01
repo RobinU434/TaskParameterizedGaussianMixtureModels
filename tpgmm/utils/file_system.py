@@ -2,14 +2,15 @@ import logging
 from typing import Any, Dict, List
 import yaml
 
+
 def load_yaml(path: str) -> Dict[str, Any]:
-    """loads yaml file from file system
+    """Loads a YAML file from the file system.
 
     Args:
-        path (str): where is the yaml file to load
+        path (str): The path to the YAML file.
 
     Returns:
-        Dict[str, Any]: loaded yaml file as dictionary
+        Dict[str, Any]: The loaded YAML file as a dictionary.
     """
     with open(path, "r") as f:
         try:
@@ -21,6 +22,14 @@ def load_yaml(path: str) -> Dict[str, Any]:
 
 
 def load_txt(path: str) -> List[str]:
+    """Loads text data from a file.
+
+    Args:
+        path (str): The path to the text file.
+
+    Returns:
+        List[str]: The list of strings, each representing a line in the text file.
+    """
     with open(path, "r") as file:
         data = file.readlines()
     # remove \n
@@ -31,11 +40,11 @@ def load_txt(path: str) -> List[str]:
 
 
 def write_yaml(path: str, content: Dict[str, Any]):
-    """writes yaml file at path to file system
+    """Writes a YAML file to the file system.
 
     Args:
-        path (str): where to store content
-        content (Dict[str, Any]): content of yaml file
+        path (str): The path where the content will be stored.
+        content (Dict[str, Any]): The content of the YAML file to be written.
     """
     with open(path, "w") as outfile:
         yaml.dump(content, outfile, default_flow_style=False)

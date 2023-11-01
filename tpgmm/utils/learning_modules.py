@@ -8,31 +8,30 @@ from sklearn.metrics import davies_bouldin_score
 
 
 class LearningModule(ABC):
-    """Basic abstract class for a generic learning module"""
+    """Basic abstract class for a generic learning module."""
 
     def __init__(self) -> None:
         super().__init__()
 
     @abstractmethod
     def fit(self, *args, **kwargs) -> None:
-        raise NotImplementedError(
-            f"No fit method implemented for class {type(self).__name__}"
-        )
+        """Basic abstract class for a generic learning module."""
+
+        raise NotImplementedError(f"No fit method implemented for class {type(self).__name__}")
 
     @abstractmethod
     def predict(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"No predict method for class {type(self).__name__} implemented"
-        )
+        """Predict output using the fitted model."""
+        raise NotImplementedError(f"No predict method for class {type(self).__name__} implemented")
 
     def fit_predict(self, X: ndarray) -> ndarray:
-        """convenience method; equivalent to calling fit(data) followed by predict(data).
+        """Convenience method; equivalent to calling fit(data) followed by predict(data).
 
         Args:
-            data (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
+            X (ndarray): Data in local reference frames. Shape (num_frames, num_points, num_features).
 
         Returns:
-            ndarray: the label for each data-point. Shape (num_points)
+            ndarray: The label for each data-point. Shape (num_points).
         """
         self.fit(X)
         return self.predict(X)
@@ -40,22 +39,19 @@ class LearningModule(ABC):
     @property
     @abstractmethod
     def config(self) -> Dict[str, Any]:
-        """get all model config parameters
-
-        Returns:
-            Dict[str, Any]: configuration parameters
-        """
+        """Get all model config parameters."""
         pass
 
 
 class RegressionModel(LearningModule, ABC):
-    """Basic Regression Model
-    Implements all interfaces and common methods for regression models
+     """Basic Regression Model.
+    Implements all interfaces and common methods for regression models.
     """
 
+
 class ClassificationModule(LearningModule, ABC):
-    """Basic Classification Model
-    Implements all interfaces and common methods for classification models
+    """Basic Classification Model.
+    Implements all interfaces and common methods for classification models.
     """
 
     def __init__(self, n_components: int) -> None:
@@ -64,33 +60,30 @@ class ClassificationModule(LearningModule, ABC):
 
     @abstractmethod
     def predict_proba(self, *args, **kwargs):
-        logging.warning(
-            f"No predict_proba method for class {type(self).__name__} implemented"
-        )
+        """Predict class probabilities for the input data."""
+        raise NotImplementedError(f"No predict_proba method for class {type(self).__name__} implemented")
 
     @abstractmethod
     def score(self, X: ndarray) -> float:
-        """calculates score function from descendent
+        """Calculate the score function from the descendant.
 
-        Often score is calculated on the optimization objective
+        Often the score is calculated based on the optimization objective.
 
         Args:
-            X (ndarray): data to calculate score on.
+            X (ndarray): Data to calculate the score on.
 
         Returns:
-            float: score
+            float: The calculated score.
         """
         pass
 
-    @abstractmethod
     def silhouette_score(self, X: ndarray) -> float:
-        logging.warning(
-            f"No silhouette score method for class {type(self).__name__} implemented"
-        )
+        """Calculate the silhouette score for the given data."""
 
-    @abstractmethod
+        logging.warning(f"No silhouette score method for class {type(self).__name__} implemented")
+
     def inertia(self, X: ndarray) -> float:
-        """Sum of squared distances of samples to their closest cluster center.
+        """Calculate the sum of squared distances of samples to their closest cluster center.
 
         Args:
             X (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
@@ -98,9 +91,7 @@ class ClassificationModule(LearningModule, ABC):
         Returns:
             float: intertia
         """
-        logging.warning(
-            f"No inertia score method for class {type(self).__name__} implemented."
-        )
+        logging.warning(f"No inertia score method for class {type(self).__name__} implemented.")
 
     def davies_bouldin_score(self, X: ndarray) -> float:
         """calculates davies_bouldin_score on given data
@@ -155,5 +146,5 @@ class ClassificationModule(LearningModule, ABC):
 
     @property
     def config(self) -> Dict[str, Any]:
+        """Get the configuration parameters."""
         return {"n_components": self._n_components}
-

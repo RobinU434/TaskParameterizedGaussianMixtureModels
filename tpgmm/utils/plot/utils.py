@@ -32,3 +32,4 @@ def set_axes_equal(ax: Axes) -> Axes:
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
     return ax
+

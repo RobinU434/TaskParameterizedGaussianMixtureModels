@@ -3,13 +3,13 @@ from typing import Iterable, Tuple
 from numpy import ndarray
 import numpy as np
 
+
 def subscript(*args) -> Tuple[slice]:
-    """builds a slicing tuple to slice a multidimensional ArrayLike structure
+    """Builds a slicing tuple to slice a multidimensional ArrayLike structure.
 
     Returns:
-        Tuple[slice]: tuple of slicing information
+        Tuple[slice]: Tuple of slicing information.
     """
-
     # TODO: write tests
     selection = []
     for arg in args:
@@ -21,14 +21,15 @@ def subscript(*args) -> Tuple[slice]:
             selection.append(slice(None))
     return tuple(selection)
 
+
 def identity_like(array: ndarray) -> ndarray:
-    """if the last two axis are the same create an identity matrix with the same shape
+    """Create an identity matrix with the same shape as the input array if the last two axes are the same.
 
     Args:
-        array (ndarray): shape: (..., a, a) with a = dimension of covariance matrix
+        array (ndarray): Input array with shape (..., a, a), where a is the dimension of the covariance matrix.
 
     Returns:
-        ndarray: identity matrix like with shape: (..., a, a)
+        ndarray: Identity matrix with the same shape as the input array, i.e., (..., a, a).
     """
     array_shape = array.shape
     if array_shape[-1] != array_shape[-2]:
@@ -45,7 +46,18 @@ def identity_like(array: ndarray) -> ndarray:
     identity[selection] = 1
     return identity
 
+
 def get_subarray(data: ndarray, axes: Iterable[int], indices: Iterable[Iterable[int]]):
+    """Extract a subarray from the input data based on the provided axes and indices.
+
+    Args:
+        data (ndarray): Input data array.
+        axes (Iterable[int]): Axes along which the subarray is to be extracted.
+        indices (Iterable[Iterable[int]]): Indices for the subarray extraction.
+
+    Returns:
+        ndarray: Subarray extracted from the input data based on the provided axes and indices.
+    """
     # test every element of indices is list[int]
     for ele in indices:
         assert isinstance(ele, Iterable)

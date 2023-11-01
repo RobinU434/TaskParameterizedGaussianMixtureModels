@@ -9,6 +9,15 @@ from tpgmm.utils.plot.utils import set_axes_equal
 
 
 def plot3D(plotter: Callable):
+    """Wrapper for 3D plot function.
+
+    Args:
+        plotter (Callable): The plotter function.
+
+    Returns:
+        Callable: The inner function that configures and displays the 3D plot.
+    """
+
     def inner(
         title: str = "",
         fig: Figure = None,
@@ -23,20 +32,21 @@ def plot3D(plotter: Callable):
         agg: bool = False,
         **kwargs,
     ):
-        """wrapper3D
-         for plot function
+        """Inner function for configuring and displaying 3D plot.
 
         Args:
-            title (str, optional): title for plot. Defaults to ''.
-            fig (_type_, optional): figure object in case you want to add the trajectory plots to an existing figure. Defaults to None.
-            ax (_type_, optional): axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
-            legend (bool, optional): if you want to plot a legend. Defaults to True.
-            color (str, optional): color for the trajectories. If auto -> different colors for each trajectory. Default is set to 'auto'
-            show (bool, optional): to show the figure. Defaults to False.
-            save (bool, optional): to save the figure with title (all spaces will be replaces by: '_'). Defaults to False.
+            title (str, optional): Title for the plot. Defaults to ''.
+            fig (Figure, optional): Figure object to add the trajectory plots to an existing figure. Defaults to None.
+            ax (Axes, optional): Axis object to add the trajectory plots to an existing axes. Defaults to None.
+            legend (bool, optional): If True, a legend is plotted. Defaults to False.
+            color (str, optional): Color for the trajectories. If 'auto', different colors are used for each trajectory. Default is set to 'auto'.
+            show (bool, optional): If True, the figure is displayed. Defaults to False.
+            save (bool, optional): If True, the figure is saved with the title (all spaces will be replaced by '_'). Defaults to False.
+            agg (bool, optional): If True, sets the backend to 'agg'. Defaults to False.
+            **kwargs: Additional keyword arguments for the plotter function.
 
         Returns:
-            _type_: _description_
+            Figure, Axes: The configured figure and axes objects.
         """
         if isinstance(dpi, (int, float)):
             mpl.rcParams["figure.dpi"] = dpi

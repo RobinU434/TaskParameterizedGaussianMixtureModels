@@ -1,7 +1,16 @@
 from functools import wraps
 import time
 
+
 def timeit(func):
+    """Decorator that measures the execution time of the decorated function.
+
+    Args:
+        func (function): The function to be decorated.
+
+    Returns:
+        function: The wrapped function that measures the execution time.
+    """
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()

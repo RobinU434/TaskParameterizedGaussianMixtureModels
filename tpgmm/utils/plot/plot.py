@@ -1,23 +1,26 @@
 from typing import List, Union
 
-from matplotlib.axes import Axes
 import numpy as np
+from matplotlib.axes import Axes
+from numpy import ndarray
+import matplotlib.colors as mcolors 
 
 from tpgmm.utils.plot.decorator import plot3D
 
 
 @plot3D
 def plot_trajectories(
-    trajectories: np.ndarray, ax=None, color: str = None, alpha: float = 1
+    trajectories: ndarray, ax=None, color: str = None, alpha: float = 1
 ) -> Axes:
-    """plot demo trajectories
+    """Plot demo trajectories in 3D space.
 
     Args:
-        trajectories (np.ndarray): demo data. Shape (num_demos, demo_length, 3)
-        ax (_type_, optional): axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
-        color (str, optional): color for the trajectories. If auto -> different colors for each trajectory. Default is set to None
+        trajectories (ndarray): Demo data with shape (num_demos, demo_length, 3).
+        ax (Axes, optional): Axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
+        color (str, optional): Color for the trajectories. If 'auto', different colors are used for each trajectory. Default is set to None.
+
     Returns:
-        _type_: _description_
+        Axes: The configured axis object.
     """
     # plot demo trajectories
     for demo_idx, demo in enumerate(trajectories):
@@ -28,22 +31,22 @@ def plot_trajectories(
 
 @plot3D
 def scatter(
-    data: Union[List[np.ndarray], np.ndarray],
+    data: Union[List[ndarray], ndarray],
     marker: str = ".",
     color: str = None,
     alpha: float = 1,
     ax=None,
 ) -> Axes:
-    """scatter 3d cluster data
+    """Scatter 3D cluster data.
 
     Args:
-        data (Union[List[np.ndarray], np.ndarray]): data points to scatter. Shape (num_clusters, num_points_per_cluster, 3)
-        marker (str, optional): _description_. Defaults to ".".
-        ax (_type_, optional): axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
-        color (str, optional): color for the trajectories. If auto -> different colors for each trajectory. Default is set to 'auto'
+        data (Union[List[ndarray], ndarray]): Data points to scatter with shape (num_clusters, num_points_per_cluster, 3).
+        marker (str, optional): Marker style for scatter plot. Defaults to ".".
+        ax (Axes, optional): Axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
+        color (str, optional): Color for the trajectories. If 'auto', different colors are used for each trajectory. Default is set to 'auto'.
 
     Returns:
-        _type_: _description_
+        Axes: The configured axis object.
     """
     if color is None or (len(color) == 1 and isinstance(color, str)):
         color = [color for _ in data]
@@ -63,21 +66,24 @@ def scatter(
 
 @plot3D
 def plot_ellipsoids(
-    means: np.ndarray, covs: np.ndarray, ax=None, color: str = None, alpha: float = 1
+    means: ndarray, covs: ndarray, ax=None, color: str = None, alpha: float = 1
 ) -> Axes:
-    """plot gaussian ellipsoids in 3D space
+    """Plot Gaussian ellipsoids in 3D space.
 
     Args:
-        means (np.ndarray): means of each cluster. Shape: (num_cluster, 3)
-        cov (np.ndarray): covariance matrix. Shape: (num_cluster, 3, 3)
-        ax (_type_, optional): axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
-        color (str, optional): color for the trajectories. If auto -> different colors for each trajectory. Default is set to 'auto'
+        means (ndarray): Means of each cluster with shape (num_cluster, 3).
+        cov (ndarray): Covariance matrix with shape (num_cluster, 3, 3).
+        ax (Axes, optional): Axis object in case you want to add the trajectory plots to an existing axes. Defaults to None.
+        color (str, optional): Color for the trajectories. If 'auto', different colors are used for each trajectory. Default is set to 'auto'.
 
     Returns:
-        _type_: _description_
+        Axes: The configured axis object.
     """
-    if color is None or len(color) == 1:
+    if color is None:
+        color = [list(mcolors.TABLEAU_COLORS.keys())[idx % len(mcolors.TABLEAU_COLORS)] for idx in range(len(means))]
+    elif len(color) == 1:
         color = [color for _ in means]
+    
     for idx, (mean, cov, c) in enumerate(zip(means, covs, color)):
         eigenvalues, eigenvectors = np.linalg.eigh(cov)
 
