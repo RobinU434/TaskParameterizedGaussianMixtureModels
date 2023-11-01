@@ -94,9 +94,9 @@ class GaussianMixtureRegression(RegressionModel):
             "ijkh,ihl->ijkl", sigma_hat_, rotation_matrix.swapaxes(-2, -1)
         )
 
-        return xi_hat, sigma_hat
+        return xi_hat_, sigma_hat_
 
-    def _equation_6(self, sigma_hat: ndarray, xi_hat: ndarray):
+    def _equation_6(self, xi_hat_: ndarray, sigma_hat_: ndarray):
         sigma_hat_inv = np.linalg.inv(sigma_hat_)
         # shape: (num_components, num_features, num_features)
         sigma_hat = np.linalg.inv(np.sum(sigma_hat_inv, axis=0))
