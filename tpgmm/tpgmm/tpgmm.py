@@ -217,28 +217,6 @@ class TPGMM(ClassificationModule):
         weighted_sum = (weights @ scores) / (self.weights_ * X.shape[0])
         return weighted_sum.mean()
 
-    def inertia(self, X: ndarray) -> float:
-        """Sum of squared distances of samples to their closest cluster center.
-        In case of multiple frames we take the mean squared distance to their closest cluster center over all frames.
-
-        TODO(Marco Todescato): please review if this is correct
-        Args:
-            X (ndarray): data in local reference frames. Shape (num_frames, num_points, num_features)
-
-        Returns:
-            float: average inertia score over all frames
-        """
-        probabilities = self.gauss_cdf(X)
-        closest_cluster = np.argmax(probabilities, axis=1)
-        # shape: (num_points, num_features, num_frames)
-        cluster_center = np.diagonal(self.means_[:, closest_cluster], axis1=0, axis2=1)
-        # (num_points, num_features, num_frames) -> (num_frames, num_points, num_features)
-        cluster_center = cluster_center.transpose(2, 0, 1)
-        # norm: (num_frames, num_points)
-        norm = np.linalg.norm(cluster_center, axis=-1)
-        # sum of squared distances
-        sum_squared = np.sum(np.power(norm, 2), axis=-1)
-        return sum_squared.mean()
 
     def score(self, X: ndarray) -> float:
         """calculate log likelihood score given data
@@ -269,21 +247,6 @@ class TPGMM(ClassificationModule):
         bic = -2 * ll + np.log(num_points) * self._n_components
         return bic
 
-    def davies_bouldin_score(self, X: ndarray) -> float:
-        """calculates the davies bouldin score for each frame and averages them
-
-        # TODO(Marco Todescator): is this score correct?
-        Args:
-            X (ndarray): data to calculate the score on. Expected shape: (num_frames, num_points, num_features)
-
-        Returns:
-            float: score value
-        """
-        labels = self.predict(X)
-        scores = []
-        for frame_data in X:
-            scores.append(metrics.davies_bouldin_score(frame_data, labels))
-        return np.mean(scores)
 
     def _k_means(
         self,
