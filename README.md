@@ -67,6 +67,10 @@ Tests can be found in: `tests/` and executed with:
 python -m unittest discover tests
 ```
 
+## Acknowledgement
+
+This repository is outcome of an internship at [Fraunhofer Italia](https://www.fraunhofer.it/de.html)
+
 ## Contribution
 
 We welcome contributions to improve the project and encourage community feedback. To contribute, follow these steps:
