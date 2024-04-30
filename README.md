@@ -69,7 +69,7 @@ python -m unittest discover tests
 
 ## Acknowledgement
 
-This repository is outcome of an internship at [Fraunhofer Italia](https://www.fraunhofer.it/de.html)
+This repository is the outcome of an internship at [Fraunhofer Italia](https://www.fraunhofer.it/de.html) under the supervision of [Marco Todescato](https://www.linkedin.com/in/marco-todescato/?originalSubdomain=de) during summer 2023.  Thank you for your constant advice and great discussions.  
 
 ## Contribution
 
