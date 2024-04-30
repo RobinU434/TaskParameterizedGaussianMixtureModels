@@ -282,7 +282,7 @@ class TPGMM(ClassificationModule):
         # reshape to: (num_points, n_components)
         probabilities = probabilities.T
         weighted_sum = probabilities @ self.weights_  # shape (num_points)
-        return np.mean(np.log(weighted_sum)).item()
+        return np.sum(np.log(weighted_sum)).item()
 
     def fit(self, X: ndarray) -> None:
         """fits X on the task parameterized gaussian mixture model using K-Means clustering as default initialization method and executes the expectation maximization algorithm: \n
