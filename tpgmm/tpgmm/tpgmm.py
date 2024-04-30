@@ -5,6 +5,7 @@ import numpy as np
 from numpy import ndarray
 from sklearn import metrics
 from sklearn.cluster import KMeans
+import itertools
 
 from tpgmm.utils.learning_modules import ClassificationModule
 from tpgmm.utils.arrays import identity_like
@@ -133,29 +134,26 @@ class TPGMM(ClassificationModule):
              - means with shape: (num_frames, n_components, num_features)
              - covariance matrix with shape: (num_frames, n_components, num_features, num_features)
         """
-        means = []
-        covariances = []
-        for frame_data in X:
+        num_frames, _, num_features = X.shape
+        means = np.empty((num_frames, self._n_components, num_features))
+        covariances = np.empty(
+            (num_frames, self._n_components, num_features, num_features)
+        )
+        for frame_idx, frame_data in enumerate(X):
             self._k_means_algo.fit(frame_data)
             # get mean
-            means.append(self._k_means_algo.cluster_centers_)
-            # get empirical covariance matrix
-            covariance = []
+            means[frame_idx] = self._k_means_algo.cluster_centers_
             for cluster_idx in range(self._n_components):
                 data_idx = np.argwhere(
                     self._k_means_algo.labels_ == cluster_idx
                 ).squeeze()
-                covariance.append(np.cov(frame_data[data_idx].T))
-            covariances.append(
-                np.stack(covariance)
-            )  # shape: (n_components, num_features, num_features)
+                covariances[frame_idx, cluster_idx] = np.cov(frame_data[data_idx].T)
 
-        covariances = np.stack(covariances)
         # regularization
         reg_matrix = identity_like(covariances) * self._reg_factor
         covariances += reg_matrix
 
-        return np.stack(means), covariances
+        return means, covariances
 
     def gauss_cdf(self, X: ndarray) -> ndarray:
         """calculate the gaussian probability for a given data set.
@@ -172,20 +170,21 @@ class TPGMM(ClassificationModule):
         Returns:
             ndarray: probability shape (num_frames, n_components, num_points)
         """
-        probs = []
+        num_frames, num_points, _ = X.shape
+        probs = np.empty((num_frames, self._n_components, num_points))
         # to prevent singularity matrices
         covariances = self.covariances_ + self._cov_reg_matrix
-        for frame_data, frame_means, frame_covariances in zip(
-            X, self.means_, covariances
+        for frame_idx, component_idx in itertools.product(
+            range(num_frames), range(self._n_components)
         ):
-            cluster_probs = []
-            for cluster_mean, cluster_cov in zip(frame_means, frame_covariances):
-                cluster_probs.append(
-                    multivariate_gauss_cdf(frame_data, cluster_mean, cluster_cov)
-                )
-            probs.append(np.stack(cluster_probs))
-        return np.stack(probs)
-
+            frame_data = X[frame_idx]
+            cluster_mean = self.means_[frame_idx, component_idx]
+            cluster_cov = covariances[frame_idx, component_idx]
+            probs[frame_idx, component_idx] = multivariate_gauss_cdf(
+                frame_data, cluster_mean, cluster_cov
+            )
+        return probs
+        
     def _update_h(self, probabilities: ndarray) -> ndarray:
         """update h parameter according to equation 49 in appendix 1
         \f[
@@ -248,21 +247,23 @@ class TPGMM(ClassificationModule):
             X (ndarray): shape: (num_frames, num_points, num_features)
             h (ndarray): shape: (n_components, num_points)
         """
-        cov = []
-        for frame_data, frame_mean in zip(X, self.means_):
-            frame_cov = []
-            for component_mean, component_h in zip(frame_mean, h):
-                centered = frame_data - component_mean
-                # shape: (num_points, num_features, num_features)
-                mat_aggregation = np.einsum("ij,ik->ijk", centered, centered)
-                # swap dimensions to: (num_features, num_features, num_points)
-                mat_aggregation = mat_aggregation.transpose(1, 2, 0)
-                # weighted sum and division by h. shape: (num_features, num_features)
-                cov_mat = (mat_aggregation @ component_h) / component_h.sum()
-                frame_cov.append(cov_mat)
-            cov.append(np.stack(frame_cov))
-        cov = np.stack(cov)
+        num_frames = X.shape[0]
+        cov = np.empty_like(self.covariances_)
+        for frame_idx, component_idx in itertools.product(
+            range(num_frames), range(self._n_components)
+        ):
+            frame_data = X[frame_idx]
+            component_mean = self.means_[frame_idx, component_idx]
+            component_h = h[component_idx]
 
+            centered = frame_data - component_mean
+            # shape: (num_points, num_features, num_features)
+            mat_aggregation = np.einsum("ij,ik->ijk", centered, centered)
+            # swap dimensions to: (num_features, num_features, num_points)
+            mat_aggregation = mat_aggregation.transpose(1, 2, 0)
+            # weighted sum and division by h. shape: (num_features, num_features)
+            cov[frame_idx, component_idx] = (mat_aggregation @ component_h) / component_h.sum()
+        
         # shape: (num_frames, num_num_features, num_features)
         self.covariances_ = cov
 
