@@ -6,7 +6,7 @@ from numpy import ndarray
 
 from tpgmm.utils.learning_modules import RegressionModel
 from tpgmm.utils.stochastic import multivariate_gauss_cdf
-from tpgmm.utils.arrays import get_subarray
+from tpgmm.utils.arrays import get_subarray, identity_like
 from tpgmm.tpgmm.tpgmm import TPGMM
 
 
@@ -121,7 +121,7 @@ class GaussianMixtureRegression(RegressionModel):
         rotation_matrix, translation = self._pad(rotation_matrix, translation)
 
         xi_hat, sigma_hat = self._equation_5(translation, rotation_matrix)
-        xi_hat, sigma_hat = self._equation_6(xi_hat, sigma_hat)
+        xi_hat, sigma_hat = self._equation_6(xi_hat, sigma_hat + identity_like(sigma_hat) * 1e-15)
 
         # rearange into original feature order
         xi_hat = self._revoke_sort_by_input(
